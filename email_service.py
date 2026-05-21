@@ -16,15 +16,29 @@ import traceback
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
+from pathlib import Path
 from dotenv import load_dotenv
+import streamlit as st
 
-load_dotenv()
+load_dotenv(dotenv_path=Path(__file__).with_name('.env'))
+
+
+def _get_setting(name: str, default: str = "") -> str:
+  """Read a setting from Streamlit secrets first, then environment variables."""
+  try:
+    if hasattr(st, "secrets") and name in st.secrets:
+      value = st.secrets[name]
+      return str(value).strip()
+  except Exception:
+    pass
+
+  return str(os.getenv(name, default)).strip()
 
 # ── SMTP Configuration ─────────────────────────────────────────
-SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-SMTP_PORT   = int(os.getenv("SMTP_PORT", 587))
-SMTP_EMAIL  = os.getenv("SMTP_EMAIL", "")
-SMTP_PASS   = os.getenv("SMTP_PASSWORD", "")
+SMTP_SERVER = _get_setting("SMTP_SERVER", "smtp.gmail.com")
+SMTP_PORT = int(_get_setting("SMTP_PORT", "587"))
+SMTP_EMAIL = _get_setting("SMTP_EMAIL")
+SMTP_PASS = _get_setting("SMTP_PASSWORD")
 
 
 # ── Core Send Function ─────────────────────────────────────────
@@ -44,7 +58,7 @@ def send_email(to_email: str, subject: str, html_body: str) -> tuple[bool, str]:
     For Gmail, you MUST use an App Password (not your real password).
     """
     if not SMTP_EMAIL or not SMTP_PASS:
-        return False, "SMTP credentials not configured in .env file."
+      return False, "SMTP credentials not configured in .env file or Streamlit secrets."
 
     try:
         # Build the email message
